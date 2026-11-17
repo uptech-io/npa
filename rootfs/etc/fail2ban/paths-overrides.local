@@ -1,0 +1,6 @@
+[DEFAULT]
+nginx_error_log = /data/log/nginx/*error.log
+nginx_access_log = /data/log/nginx/*access.log
+
+# A ban on the docker_gwbridge gateway would block every IPv6 client of the node.
+ignoreip = 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16

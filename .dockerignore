@@ -1,0 +1,9 @@
+# Only build/ and rootfs/ go into the build context.
+*
+!build
+!rootfs
+
+# Host-only files that "COPY rootfs/ /" must not ship into the image.
+rootfs/app/.venv
+**/__pycache__
+**/.env

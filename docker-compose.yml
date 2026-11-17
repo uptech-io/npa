@@ -1,0 +1,59 @@
+volumes:
+  data:
+
+networks:
+  entrypoint:
+    name: entrypoint
+    external: true
+  backend:
+    name: backend
+    external: true
+
+services:
+  npa:
+    image: ghcr.io/uptech-io/nginx-proxy-agent:latest
+    stop_grace_period: 60s
+
+    deploy:
+      mode: global
+      resources:
+        limits:
+          cpus: "8"
+          memory: 8G
+        reservations:
+          cpus: "6"
+          memory: 6G
+
+    environment:
+      - TASKS_DNS=tasks.{{.Service.Name}}
+      - user_email=${APPSEC_USER_EMAIL:?set APPSEC_USER_EMAIL in .env}
+      - AGENT_TOKEN=${APPSEC_AGENT_TOKEN:?set APPSEC_AGENT_TOKEN in .env}
+      - autoPolicyLoad=false
+
+    ports:
+      - target: 80
+        published: 80
+        protocol: tcp
+        mode: host
+
+      - target: 443
+        published: 443
+        protocol: tcp
+        mode: host
+
+    volumes:
+      - /etc/hostname:/etc/hostname:ro
+      - data:/data
+
+    cap_add:
+      - CAP_NET_ADMIN
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+    networks:
+      - entrypoint
+      - backend

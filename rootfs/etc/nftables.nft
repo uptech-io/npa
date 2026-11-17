@@ -1,0 +1,42 @@
+#!/usr/sbin/nft -f
+
+# ========================================
+define HTTP_PORTS = { 80, 443 }
+# ========================================
+
+table inet filter {
+    set flood4 { type ipv4_addr; flags dynamic, timeout; size 65535; }
+    set flood6 { type ipv6_addr; flags dynamic, timeout; size 65535; }
+
+    chain input {
+        type filter hook input priority 0; policy drop;
+
+        # Accept traffic from the local loopback interface.
+        iifname "lo" accept
+        # Accept established and related connections.
+        ct state established,related accept
+
+        # ---------- ICMPv4 ----------
+        ip protocol icmp icmp type { destination-unreachable, time-exceeded, parameter-problem } accept
+        ip protocol icmp icmp type { echo-request, echo-reply } limit rate 5/second burst 10 packets accept
+
+        # ---------- ICMPv6 ----------
+        icmpv6 type { destination-unreachable, packet-too-big, time-exceeded, parameter-problem } accept
+        icmpv6 type { echo-request, echo-reply } limit rate 5/second burst 10 packets accept
+
+        # ---------- IPv6 ND/SLAAC ----------
+        icmpv6 type nd-router-advert ip6 saddr fe80::/10 ip6 hoplimit 255 accept
+        icmpv6 type {
+            nd-router-solicit,
+            nd-neighbor-solicit,
+            nd-neighbor-advert
+        } ip6 hoplimit 255 accept
+
+        # ---------- Nginx ----------
+        iifname $wan_iface ct state new tcp dport $HTTP_PORTS \
+            update @flood4 { ip saddr timeout 10s limit rate over 50/second burst 50 packets } drop
+        iifname $wan_iface ct state new tcp dport $HTTP_PORTS \
+            update @flood6 { ip6 saddr and ffff:ffff:ffff:ffff:: timeout 10s limit rate over 100/second burst 25 packets } drop
+        iifname $wan_iface ct state new tcp dport $HTTP_PORTS accept
+    }
+}

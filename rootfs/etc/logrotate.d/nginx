@@ -1,0 +1,11 @@
+/data/log/nginx/*.log /var/log/nginx/*.log {
+	daily
+	rotate 7
+	missingok
+	notifempty
+	delaycompress
+	sharedscripts
+	postrotate
+		kill -USR1 "$(cat /run/nginx/nginx.pid 2>/dev/null)" 2>/dev/null || true
+	endscript
+}
