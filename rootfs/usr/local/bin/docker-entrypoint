@@ -1,0 +1,35 @@
+#!/bin/bash
+
+shopt -s nullglob
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+LIB_DIR="${SCRIPT_DIR}/docker-entrypoint.d"
+
+source "${LIB_DIR}/common.sh"
+source "${LIB_DIR}/hooks.sh"
+
+# Create directories for storing data.
+mkdir -p /data/nginx/{custom,proxy_host,redirection_host}
+mkdir -p /data/cp
+mkdir -p /data/acme
+mkdir -p /data/agent
+mkdir -p /data/fail2ban/jail.d
+mkdir -p /data/entrypoint-hooks.d/{nftables.d,scripts.d}
+mkdir -p /data/log/{nginx,fail2ban,nano_agent}
+# fail2ban refuses to start when the log file of a jail does not exist yet.
+touch /data/log/nginx/fallback_error.log /data/log/nginx/fallback_http_access.log
+
+[[ "$(stat -c %a /data/entrypoint-hooks.d)" == 700 ]] || chmod 0700 /data/entrypoint-hooks.d
+[[ "$(stat -c %a /data/log)" == 750 ]] || chmod 0750 /data/log
+
+# A pid file left by an earlier run of this container would aim the drain and log-reopen signals at an unrelated process.
+rm -f /run/nginx/nginx.pid
+
+# Load the firewall before any service starts listening.
+load_nftables_configs "${HOOKS_DIR}"
+run_bash_scripts "${HOOKS_DIR}"
+
+/app/.venv/bin/agent restore || log "Error: the agent could not put back the nginx host files of an unconfirmed change."
+
+# supervisord (CMD) starts the services and docker-bootstrap.
+exec "$@"
