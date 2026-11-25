@@ -12,7 +12,6 @@ networks:
 services:
   npa:
     image: ghcr.io/uptech-io/nginx-proxy-agent:latest
-    stop_grace_period: 60s
 
     deploy:
       mode: global
@@ -24,8 +23,9 @@ services:
           cpus: "6"
           memory: 6G
 
+    stop_grace_period: 70s
+
     environment:
-      - TASKS_DNS=tasks.{{.Service.Name}}
       - user_email=${APPSEC_USER_EMAIL:?set APPSEC_USER_EMAIL in .env}
       - AGENT_TOKEN=${APPSEC_AGENT_TOKEN:?set APPSEC_AGENT_TOKEN in .env}
       - autoPolicyLoad=false
