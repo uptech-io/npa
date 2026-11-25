@@ -1,0 +1,34 @@
+#!/bin/bash
+
+DRAIN_SECONDS="${DRAIN_SECONDS:-25}"
+PID_FILE="${NGINX_PID_FILE:-/run/nginx/nginx.pid}"
+
+drain_then_stop() {
+    local pid deadline
+    pid="$(cat "${PID_FILE}" 2>/dev/null)"
+
+    # QUIT goes straight to the master: "nginx -s quit" parses the config first and fails when it is broken.
+    if [[ -n "${pid}" ]] && kill -QUIT "${pid}" 2>/dev/null; then
+        deadline=$((SECONDS + DRAIN_SECONDS))
+
+        while kill -0 "${pid}" 2>/dev/null && ((SECONDS < deadline)); do
+            sleep 0.2
+        done
+    fi
+
+    kill -TERM "${child}" 2>/dev/null
+}
+
+# A background child of a script starts with INT and QUIT ignored, and its children inherit that; the trap reset avoids it.
+(trap - INT QUIT; exec "$@") &
+child=$!
+trap drain_then_stop TERM
+
+wait "${child}"
+status=$?
+# A trapped signal makes wait return while the command is still running.
+while kill -0 "${child}" 2>/dev/null; do
+    wait "${child}"
+    status=$?
+done
+exit "${status}"
