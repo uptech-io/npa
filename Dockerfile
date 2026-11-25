@@ -23,6 +23,7 @@ RUN set -eux; \
 		hiredis \
 		curl \
 		bind-tools \
+		openssl \
 	; \
 	\
 	ln -sf /usr/share/zoneinfo/America/Recife /etc/localtime; \
